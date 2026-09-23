@@ -6,17 +6,11 @@ import numpy as np
 from typing_extensions import Protocol
 
 from . import operators
-from .tensor_data import (
-    MAX_DIMS,
-    broadcast_index,
-    index_to_position,
-    shape_broadcast,
-    to_index,
-)
+from .tensor_data import broadcast_index, index_to_position, shape_broadcast, to_index
 
 if TYPE_CHECKING:
     from .tensor import Tensor
-    from .tensor_data import Index, Shape, Storage, Strides
+    from .tensor_data import Shape, Storage, Strides
 
 
 class MapProto(Protocol):
@@ -268,8 +262,14 @@ def tensor_map(fn: Callable[[float], float]) -> Any:
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        out_index = np.zeros(len(out_shape), dtype=np.int32)
+        in_index = np.zeros(len(in_shape), dtype=np.int32)
+        for i in range(len(out)):
+            to_index(i, out_shape, out_index)
+            broadcast_index(out_index, out_shape, in_shape, in_index)
+            pos_out = index_to_position(out_index, out_strides)
+            pos_in = index_to_position(in_index, in_strides)
+            out[pos_out] = fn(in_storage[pos_in])
 
     return _map
 
@@ -318,8 +318,18 @@ def tensor_zip(fn: Callable[[float, float], float]) -> Any:
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        a_idx = np.zeros(len(a_shape), dtype=np.int32)
+        b_idx = np.zeros(len(b_shape), dtype=np.int32)
+        out_idx = np.zeros(len(out_shape), dtype=np.int32)
+
+        for i in range(len(out)):
+            to_index(i, out_shape, out_idx)
+            broadcast_index(out_idx, out_shape, a_shape, a_idx)
+            broadcast_index(out_idx, out_shape, b_shape, b_idx)
+            pos_out = index_to_position(out_idx, out_strides)
+            pos_a = index_to_position(a_idx, a_strides)
+            pos_b = index_to_position(b_idx, b_strides)
+            out[pos_out] = fn(a_storage[pos_a], b_storage[pos_b])
 
     return _zip
 
@@ -354,8 +364,17 @@ def tensor_reduce(fn: Callable[[float, float], float]) -> Any:
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        out_idx = np.zeros(len(out_shape), dtype=np.int32)
+        a_idx = np.zeros(len(a_shape), dtype=np.int32)
+
+        for i in range(len(out)):
+            to_index(i, out_shape, out_idx)
+            pos_out = index_to_position(out_idx, out_strides)
+            a_idx[:] = out_idx
+            for j in range(a_shape[reduce_dim]):
+                a_idx[reduce_dim] = j
+                pos_a = index_to_position(a_idx, a_strides)
+                out[pos_out] = fn(out[pos_out], a_storage[pos_a])
 
     return _reduce
 
